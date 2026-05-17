@@ -1,0 +1,38 @@
+{
+  "groups": [
+    {
+      "name": "desensitize",
+      "type": "com.desensitize.core.config.DesensitizeConfigProperties",
+      "sourceType": "com.desensitize.core.config.DesensitizeConfigProperties"
+    },
+    {
+      "name": "desensitize.ai",
+      "type": "com.desensitize.core.config.DesensitizeConfigProperties$AiConfig",
+      "sourceType": "com.desensitize.core.config.DesensitizeConfigProperties",
+      "sourceMethod": "public com.desensitize.core.config.DesensitizeConfigProperties.AiConfig getAi() "
+    }
+  ],
+  "properties": [
+    {
+      "name": "desensitize.ai.prompt-template",
+      "type": "java.lang.String",
+      "sourceType": "com.desensitize.core.config.DesensitizeConfigProperties$AiConfig"
+    },
+    {
+      "name": "desensitize.config-path",
+      "type": "java.lang.String",
+      "sourceType": "com.desensitize.core.config.DesensitizeConfigProperties"
+    },
+    {
+      "name": "desensitize.mask-char",
+      "type": "java.lang.String",
+      "sourceType": "com.desensitize.core.config.DesensitizeConfigProperties"
+    },
+    {
+      "name": "desensitize.types",
+      "type": "java.util.List<com.desensitize.core.model.SensitiveTypeConfig>",
+      "sourceType": "com.desensitize.core.config.DesensitizeConfigProperties"
+    }
+  ],
+  "hints": []
+}
