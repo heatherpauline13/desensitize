@@ -28,6 +28,30 @@ public class MaskFormat {
             return new MaskFormat(MaskFormatType.MASK_ALL, null, null);
         }
 
+        if ("nameMask()".equalsIgnoreCase(trimmed)) {
+            return new MaskFormat(MaskFormatType.NAME_MASK, null, null);
+        }
+
+        if ("emailMask()".equalsIgnoreCase(trimmed)) {
+            return new MaskFormat(MaskFormatType.EMAIL_MASK, null, null);
+        }
+
+        if ("dateMask()".equalsIgnoreCase(trimmed)) {
+            return new MaskFormat(MaskFormatType.DATE_MASK, null, null);
+        }
+
+        if ("landlineMask()".equalsIgnoreCase(trimmed)) {
+            return new MaskFormat(MaskFormatType.LANDLINE_MASK, null, null);
+        }
+
+        if ("addressMask()".equalsIgnoreCase(trimmed)) {
+            return new MaskFormat(MaskFormatType.ADDRESS_MASK, null, null);
+        }
+
+        if ("passportMask()".equalsIgnoreCase(trimmed)) {
+            return new MaskFormat(MaskFormatType.PASSPORT_MASK, null, null);
+        }
+
         if (trimmed.startsWith("preserve(") && trimmed.endsWith(")")) {
             String inner = trimmed.substring("preserve(".length(), trimmed.length() - 1);
             String[] parts = inner.split(",");
@@ -50,6 +74,7 @@ public class MaskFormat {
             return new MaskFormat(MaskFormatType.REPLACE, start, length);
         }
 
-        throw new IllegalArgumentException("不支持的脱敏格式: " + formatStr + "，支持: maskAll(), preserve(N,M), replace(start,length)");
+        throw new IllegalArgumentException("不支持的脱敏格式: " + formatStr
+                + "，支持: maskAll(), preserve(N,M), replace(start,length), nameMask(), emailMask(), dateMask(), landlineMask(), addressMask(), passportMask()");
     }
 }

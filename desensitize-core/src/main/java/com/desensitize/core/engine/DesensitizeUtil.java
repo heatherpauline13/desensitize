@@ -14,6 +14,15 @@ import java.util.regex.Pattern;
 @Slf4j
 public class DesensitizeUtil {
 
+    private static final int[] DATE_SEPARATORS;
+
+    static {
+        DATE_SEPARATORS = new int[128];
+        DATE_SEPARATORS['-'] = 1;
+        DATE_SEPARATORS['/'] = 1;
+        DATE_SEPARATORS[':'] = 1;
+    }
+
     private static volatile DesensitizeRuleRegistry registry;
 
     private DesensitizeUtil() {
@@ -137,10 +146,9 @@ public class DesensitizeUtil {
 
             result.replace(match.getStart(), match.getEnd(), match.getMatchedText());
 
-            for (int i = match.getStart(); i < match.getStart() + match.getMatchedText().length(); i++) {
-                if (i < maskedPositions.length) {
-                    maskedPositions[i] = true;
-                }
+            int newEnd = match.getStart() + match.getMatchedText().length();
+            for (int i = match.getStart(); i < newEnd && i < maskedPositions.length; i++) {
+                maskedPositions[i] = true;
             }
         }
 
@@ -148,7 +156,6 @@ public class DesensitizeUtil {
     }
 
     private static String applySingleTypeMask(String content, SensitiveTypeConfig config) {
-        MaskFormat format = MaskFormat.parse(config.getMaskFormat());
         String maskChar = config.getMaskChar();
 
         Pattern pattern;
@@ -164,12 +171,14 @@ public class DesensitizeUtil {
             return content;
         }
 
-        return applyMaskValue(matcher.group(), config);
+        return applyMaskFormat(matcher.group(), config.getMaskFormat(), maskChar);
     }
 
-    static String applyMaskValue(String text, SensitiveTypeConfig config) {
-        MaskFormat format = MaskFormat.parse(config.getMaskFormat());
-        String maskChar = config.getMaskChar();
+    static String applyMaskFormat(String text, String formatExpression, String maskChar) {
+        if (formatExpression == null || formatExpression.isEmpty()) {
+            return text;
+        }
+        MaskFormat format = MaskFormat.parse(formatExpression);
 
         switch (format.getType()) {
             case MASK_ALL:
@@ -178,27 +187,180 @@ public class DesensitizeUtil {
                 return applyPreserve(text, format.getParam1(), format.getParam2(), maskChar);
             case REPLACE:
                 return applyReplace(text, format.getParam1(), format.getParam2(), maskChar);
+            case NAME_MASK:
+                return applyNameMask(text, maskChar);
+            case EMAIL_MASK:
+                return applyEmailMask(text, maskChar);
+            case DATE_MASK:
+                return applyDateMask(text, maskChar);
+            case LANDLINE_MASK:
+                return applyLandlineMask(text, maskChar);
+            case ADDRESS_MASK:
+                return applyAddressMask(text, maskChar);
+            case PASSPORT_MASK:
+                return applyPassportMask(text, maskChar);
             default:
                 return text;
         }
     }
 
-    private static String applyMaskFormat(String content, String formatExpression, String maskChar) {
-        MaskFormat format = MaskFormat.parse(formatExpression);
-
-        switch (format.getType()) {
-            case MASK_ALL:
-                return maskChar.repeat(content.length());
-            case PRESERVE:
-                return applyPreserve(content, format.getParam1(), format.getParam2(), maskChar);
-            case REPLACE:
-                return applyReplace(content, format.getParam1(), format.getParam2(), maskChar);
-            default:
-                return content;
+    static String applyNameMask(String name, String maskChar) {
+        if (name.contains(" ")) {
+            return applyEnglishNameMask(name, maskChar);
         }
+        if (name.length() <= 2) {
+            return name.substring(0, 1) + maskChar.repeat(name.length() - 1);
+        }
+        return name.substring(0, 2) + maskChar.repeat(name.length() - 2);
     }
 
-    private static String applyPreserve(String text, int keepPrefix, int keepSuffix, String maskChar) {
+    private static String applyEnglishNameMask(String name, String maskChar) {
+        String[] words = name.split(" ");
+        StringBuilder result = new StringBuilder();
+        result.append(words[0]);
+        for (int i = 1; i < words.length; i++) {
+            result.append(' ');
+            if (words[i].length() > 0) {
+                result.append(maskChar.repeat(words[i].length()));
+            }
+        }
+        return result.toString();
+    }
+
+    static String applyEmailMask(String email, String maskChar) {
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 0) {
+            return maskChar.repeat(email.length());
+        }
+        String localPart = email.substring(0, atIndex);
+        String domainPart = email.substring(atIndex);
+
+        StringBuilder maskedLocal = new StringBuilder();
+        if (localPart.length() < 3) {
+            maskedLocal.append(localPart);
+            maskedLocal.append(maskChar.repeat(3));
+        } else {
+            maskedLocal.append(localPart, 0, 3);
+            maskedLocal.append(maskChar.repeat(3));
+        }
+        return maskedLocal.toString() + domainPart;
+    }
+
+    static String applyDateMask(String dateStr, String maskChar) {
+        StringBuilder result = new StringBuilder(dateStr.length());
+        boolean inYear = true;
+        for (int i = 0; i < dateStr.length(); i++) {
+            char c = dateStr.charAt(i);
+            if (c >= '0' && c <= '9') {
+                if (inYear) {
+                    result.append(c);
+                } else {
+                    result.append(maskChar);
+                }
+            } else {
+                if (c < 128 && DATE_SEPARATORS[c] == 1) {
+                    inYear = false;
+                }
+                result.append(c);
+            }
+        }
+        return result.toString();
+    }
+
+    static String applyLandlineMask(String phone, String maskChar) {
+        int dashIndex = phone.indexOf('-');
+        if (dashIndex <= 0) {
+            return applyPreserve(phone, 2, 2, maskChar);
+        }
+
+        String areaCode = phone.substring(0, dashIndex + 1);
+        String number = phone.substring(dashIndex + 1);
+
+        if (number.length() <= 2) {
+            return areaCode + maskChar.repeat(number.length());
+        }
+
+        return areaCode
+                + maskChar.repeat(number.length() - 2)
+                + number.substring(number.length() - 2);
+    }
+
+    static String applyAddressMask(String address, String maskChar) {
+        int shengIdx = address.indexOf('省');
+        if (shengIdx >= 0) {
+            String province = address.substring(0, shengIdx + 1);
+            return province + maskChar.repeat(address.length() - province.length());
+        }
+
+        int kenIdx = address.indexOf('県');
+        if (kenIdx >= 0) {
+            String ken = address.substring(0, kenIdx + 1);
+            return ken + maskChar.repeat(address.length() - ken.length());
+        }
+
+        int siIdx = indexOfKoreanRegion(address);
+        if (siIdx >= 0) {
+            String region = address.substring(0, siIdx + 1);
+            return region + maskChar.repeat(address.length() - region.length());
+        }
+
+        int lastComma = address.lastIndexOf(',');
+        if (lastComma >= 0) {
+            String region = address.substring(lastComma + 1);
+            return maskChar.repeat(lastComma + 1) + region.trim();
+        }
+
+        int lastSpace = address.lastIndexOf(' ');
+        if (lastSpace >= 0) {
+            String region = address.substring(lastSpace + 1);
+            return maskChar.repeat(lastSpace + 1) + region;
+        }
+
+        if (address.length() <= 3) {
+            return maskChar.repeat(address.length());
+        }
+        return address.substring(0, 3) + maskChar.repeat(address.length() - 3);
+    }
+
+    private static int indexOfKoreanRegion(String address) {
+        int len = address.length();
+        for (int i = 0; i < len; i++) {
+            char c = address.charAt(i);
+            if (isKoreanSyllable(c)) {
+                if (i + 1 < len) {
+                    char next = address.charAt(i + 1);
+                    if (next == '시' || next == '도') {
+                        return i + 1;
+                    }
+                }
+            }
+            if (c == '시' || c == '도') {
+                if (i >= 2) {
+                    char prev1 = address.charAt(i - 1);
+                    char prev2 = address.charAt(i - 2);
+                    if (isKoreanSyllable(prev1) || isKoreanSyllable(prev2)) {
+                        return i;
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+
+    private static boolean isKoreanSyllable(char c) {
+        return c >= 0xAC00 && c <= 0xD7AF;
+    }
+
+    static String applyPassportMask(String passport, String maskChar) {
+        if (passport.length() <= 4) {
+            return passport.charAt(0) + maskChar.repeat(passport.length() - 1);
+        }
+        return passport.charAt(0)
+                + maskChar.repeat(passport.length() - 4)
+                + passport.substring(passport.length() - 3);
+    }
+
+    static String applyPreserve(String text, int keepPrefix, int keepSuffix, String maskChar) {
         if (text.length() <= keepPrefix + keepSuffix) {
             return text;
         }
@@ -208,7 +370,7 @@ public class DesensitizeUtil {
         return prefix + maskChar.repeat(maskLen) + suffix;
     }
 
-    private static String applyReplace(String text, int start, int length, String maskChar) {
+    static String applyReplace(String text, int start, int length, String maskChar) {
         int actualStart = Math.max(0, start);
         int actualEnd = Math.min(text.length(), actualStart + length);
         int maskLen = actualEnd - actualStart;
