@@ -186,14 +186,14 @@ desensitize:
       name: "人民币金额"
       regexPattern: "[¥￥]\\d{1,3}(,\\d{3})*(\\.\\d{2})?"
       mixedRegexPattern: "(金额|人民币)[：:]\\s*([¥￥]\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})?)"
-      maskFormat: "maskAll()"
+      maskFormat: "preserve(1,0)"
 
     # ========== 外币金额 ==========
     - typeId: "foreign_amount"
       name: "外币金额"
       regexPattern: "[$€£]\\d{1,3}(,\\d{3})*(\\.\\d{2})?"
       mixedRegexPattern: "(外币|美元|欧元|英镑)[：:]\\s*([$€£]\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})?)"
-      maskFormat: "maskAll()"
+      maskFormat: "preserve(1,0)"
 
     # ========== 验证码 ==========
     - typeId: "verification_code"
