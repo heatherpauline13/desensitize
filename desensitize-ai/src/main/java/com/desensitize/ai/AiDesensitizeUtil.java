@@ -36,13 +36,8 @@ public class AiDesensitizeUtil {
             return content;
         }
 
-        if (chatClient == null) {
+        if (!isAvailable()) {
             log.warn("AI脱敏模块未初始化，返回原值");
-            return content;
-        }
-
-        if (promptTemplate == null || promptTemplate.isBlank()) {
-            log.warn("AI脱敏提示词模板为空，返回原值");
             return content;
         }
 
@@ -54,8 +49,7 @@ public class AiDesensitizeUtil {
                     .call()
                     .content();
 
-            log.debug("AI脱敏完成，输入长度: {}, 输出长度: {}", content.length(),
-                    result != null ? result.length() : 0);
+            log.info("AI远程处理结果:\n{}\n 输入长度: {}, 输出长度: {}", result,content.length(), result != null ? result.length() : 0);
 
             return result != null ? result : content;
         } catch (Exception e) {

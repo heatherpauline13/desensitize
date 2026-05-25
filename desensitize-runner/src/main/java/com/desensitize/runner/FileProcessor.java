@@ -28,12 +28,25 @@ public class FileProcessor {
         HEADER_TYPE_MAP.put("phone", "phone");
         HEADER_TYPE_MAP.put("身份证号", "id_card");
         HEADER_TYPE_MAP.put("id_card", "id_card");
+        HEADER_TYPE_MAP.put("id_card_with_birth", "id_card_with_birth");
         HEADER_TYPE_MAP.put("银行卡号", "bank_card");
         HEADER_TYPE_MAP.put("bank_card", "bank_card");
         HEADER_TYPE_MAP.put("地址", "address");
         HEADER_TYPE_MAP.put("address", "address");
         HEADER_TYPE_MAP.put("国家", "nationality");
         HEADER_TYPE_MAP.put("nationality", "nationality");
+        HEADER_TYPE_MAP.put("护照号", "passport");
+        HEADER_TYPE_MAP.put("passport", "passport");
+        HEADER_TYPE_MAP.put("邮箱", "email");
+        HEADER_TYPE_MAP.put("email", "email");
+        HEADER_TYPE_MAP.put("车牌号", "license_plate");
+        HEADER_TYPE_MAP.put("license_plate", "license_plate");
+        HEADER_TYPE_MAP.put("固话", "landline_domestic");
+        HEADER_TYPE_MAP.put("landline", "landline_domestic");
+        HEADER_TYPE_MAP.put("日期", "date");
+        HEADER_TYPE_MAP.put("date", "date");
+        HEADER_TYPE_MAP.put("生日", "date");
+        HEADER_TYPE_MAP.put("birthday", "date");
     }
 
     private static final Set<String> TEXT_EXTENSIONS = Set.of("txt", "md", "json", "xml", "csv");
@@ -52,8 +65,8 @@ public class FileProcessor {
             String content = Files.readString(path, StandardCharsets.UTF_8);
             String masked = DesensitizeUtil.maskLongText(content);
             writeResult(path, masked, extension);
-            log.info("文档文件脱敏完成: {} -> result/", path.getFileName());
-            System.out.println("脱敏完成，结果保存在: result/" + getOutputFileName(path));
+            log.info("文档文件脱敏完成: {} -> test/res/", path.getFileName());
+            System.out.println("脱敏完成，结果保存在: test/res/" + getOutputFileName(path));
         } catch (IOException e) {
             System.err.println("文件处理失败: " + e.getMessage());
             System.exit(1);
@@ -252,7 +265,7 @@ public class FileProcessor {
     }
 
     private static Path ensureResultDir() throws IOException {
-        Path resultPath = Paths.get("result");
+        Path resultPath = Paths.get("test/res");
         if (!Files.exists(resultPath)) {
             Files.createDirectories(resultPath);
         }

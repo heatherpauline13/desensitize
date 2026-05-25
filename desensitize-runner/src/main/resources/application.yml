@@ -1,9 +1,13 @@
 spring:
   main:
     web-application-type: none
-  autoconfigure:
-    exclude:
-      - org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration
   config:
     import:
       - classpath:desensitize-config.yml
+  ai:
+    openai:
+      api-key: sk-3a120252e92a4cb0b5b206f60a56f976
+      base-url: https://api.deepseek.com
+      chat:
+        options:
+          model: deepseek-v4-pro
