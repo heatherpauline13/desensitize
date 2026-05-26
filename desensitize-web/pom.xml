@@ -8,33 +8,61 @@
         <groupId>com.desensitize</groupId>
         <artifactId>desensitize-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>desensitize-runner</artifactId>
-    <name>desensitize-runner</name>
-    <description>Command line runner for data desensitization (pure CLI)</description>
+    <artifactId>desensitize-web</artifactId>
+    <name>desensitize-web</name>
+    <description>Web application for data desensitization (frontend + controller layer)</description>
+
+    <properties>
+        <java.version>19</java.version>
+    </properties>
 
     <dependencies>
+        <!-- Core desensitization engine -->
         <dependency>
             <groupId>com.desensitize</groupId>
             <artifactId>desensitize-core</artifactId>
         </dependency>
+
+        <!-- AI desensitization module -->
         <dependency>
             <groupId>com.desensitize</groupId>
             <artifactId>desensitize-ai</artifactId>
         </dependency>
 
+        <!-- Annotation support -->
+        <dependency>
+            <groupId>com.desensitize</groupId>
+            <artifactId>desensitize-annotation</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Apache POI for Excel processing -->
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
         </dependency>
 
+        <!-- OpenCSV -->
         <dependency>
             <groupId>com.opencsv</groupId>
             <artifactId>opencsv</artifactId>
         </dependency>
 
+        <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -48,16 +76,16 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.desensitize.runner.DesensitizeApplication</mainClass>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                    <mainClass>com.desensitize.web.DesensitizeWebApplication</mainClass>
                 </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
+
 </project>

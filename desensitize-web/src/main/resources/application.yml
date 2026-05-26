@@ -1,6 +1,10 @@
+server:
+  address: 0.0.0.0
+  port: 8080
+
 spring:
   main:
-    web-application-type: none
+    web-application-type: servlet
   config:
     import:
       - classpath:desensitize-config.yml

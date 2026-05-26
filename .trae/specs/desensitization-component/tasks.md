@@ -1,112 +1,80 @@
 # 数据脱敏组件 - 任务列表
 
-## 阶段一：数据模型重构（策略模式支持）
+## 阶段一：脱敏格式类型扩展
 
-### Task 1: 扩展数据模型，支持两级配置结构
-- [x] 新建 `SubSensitiveTypeConfig` 类，包含 `typeId`、`name`、`regexPattern`、`maskFormat`、`maskChar`、`maskFlag` 字段
-  - 基于现有 `SensitiveTypeConfig` 的通用字段设计
-  - 用于大类下的子类型定义
-- [x] 扩展 `SensitiveTypeConfig` 类，新增字段：
-  - `subTypes: List<SubSensitiveTypeConfig>` — 子类型列表（非数字类型使用）
-  - `defaultMaskFormat: String` — 默认脱敏格式（所有子类型正则都不匹配时的 fallback）
-  - `mixedRegexPattern: String` — 混合上下文正则（长文本脱敏使用）
-  - `isStrategyType: boolean` — 标识是否为策略模式类型
-- [x] 更新 `MaskFormatType` 枚举或工具类，确保 `defaultMaskFormat` 被正确解析
+### Task 1: 扩展 MaskFormatType 枚举
+- [x] 新增 `NAME_MASK` — 姓名专用脱敏（2字保留1，3+字保留前2）
+- [x] 新增 `EMAIL_MASK` — 邮箱专用脱敏（@前3位+3星，@后完整）
+- [x] 新增 `DATE_MASK` — 日期专用脱敏（保留年份，月日屏蔽）
+- [x] 新增 `LANDLINE_MASK` — 固话专用脱敏（区号保留，保留后2位）
+- [x] 新增 `ADDRESS_MASK` — 地址专用脱敏（保留省市区路号，屏蔽具体位置）
+- [x] 新增 `PASSPORT_MASK` — 护照专用脱敏（保留1字母+后3数字）
 
-### Task 2: 更新 YAML 配置文件结构
-- [x] 重写 `desensitize-config.yml`：
-  - **数字类型**（phone、id_card、bank_card 等）：保留 `regexPattern`、`maskFormat`，新增 `mixedRegexPattern`
-  - **非数字类型（策略模式）**：
-    - `name` 大类：包含 `subTypes`（chinese_name、english_name、korean_name、japanese_name、xinjiang_name、default_name），每个子类型有独立 `regexPattern` 和 `maskFormat`
-    - `address` 大类：包含 `subTypes`（chinese_address、english_address、japanese_address、default_address）
-    - `name` 和 `address` 大类的 `mixedRegexPattern` 使用上下文约束正则
-  - `nationality` 设置 `maskFlag: false`（过于宽泛）
-- [x] 为所有类型编写 `mixedRegexPattern`（注意：name 的 mixedRegexPattern 前缀必选，不设 `?` 以避免误匹配）
+### Task 2: 扩展 MaskFormat 解析器
+- [x] `MaskFormat.parse()` 支持解析 `nameMask()`、`emailMask()`、`dateMask()`、`landlineMask()`、`addressMask()`、`passportMask()`
 
-### Task 3: 更新配置加载逻辑
-- [x] `DesensitizeConfigProperties` 类通过 `@ConfigurationProperties` 自动绑定新字段（无代码改动）
-- [x] 更新 `DesensitizeRuleRegistry`：
-  - `register` 方法支持注册大类配置（含子类型），策略类型走 `registerStrategyType()`
-  - 新增 `getConfig(String typeId)` 返回 `SensitiveTypeConfig`
-  - 新增 `isStrategyType(String typeId)` 判断是否策略模式类型
-  - 新增 `getSubTypes(String typeId)` 获取子类型列表
-  - 新增 `getTypeConfigs()` / `getAllTypes()` 返回所有类型
-- [x] YAML 中 `strategyType` 键名正确绑定到 `isStrategyType` 字段（Spring Boot 属性绑定规范）
+## 阶段二：脱敏引擎核心重构
 
-## 阶段二：策略模式脱敏引擎实现
+### Task 3: 重构 DesensitizeUtil.java
+- [x] 新增 `applyNameMask()` — 2字保留第1字屏蔽第2字，3+字保留前2字屏蔽其余
+- [x] 新增 `applyEmailMask()` — @前展示前3位+3个*，@后完整展示；@前<3位则全部展示+3*
+- [x] 新增 `applyDateMask()` — 保留年份数字，月日信息用*屏蔽
+- [x] 新增 `applyLandlineMask()` — 区号不隐藏，电话号码保留最后2位
+- [x] 新增 `applyAddressMask()` — 保留省市区县+路街巷号，具体门牌号等信息屏蔽
+- [x] 新增 `applyPassportMask()` — 保留1位字母和最后3位数字
+- [x] 预编译静态 Pattern 常量（ADMIN_REGION_PATTERN, ADDRESS_SEGMENT_PATTERN）优化性能
+- [x] 优化 `applyDateMask()` 使用字符查找表代替 String.valueOf
+- [x] 优化 `maskBetween()` 使用 `isAddressKeepChar()` 静态方法代替正则匹配
 
-### Task 4: 实现单一类型脱敏的策略模式分支
-- [x] 修改 `DesensitizeUtil.mask(content, typeId)` 方法：
-  - 保留数字类型的精确正则匹配逻辑（无变化）
-  - 新增策略模式分支：
-    - 判断 `typeId` 是否为策略模式类型（`isStrategyType`）
-    - 若是，遍历 `subTypes`，用每个子类型的 `regexPattern` 匹配 content
-    - 第一个匹配到的子类型使用其 `maskFormat` 进行脱敏
-    - 所有子类型都不匹配时，使用 `defaultMaskFormat` 进行脱敏
-  - `maskFlag=false` 的配置依然直接返回原值
+### Task 4: 同步更新 RegexMaskEngine.java
+- [x] 新增同名脱敏方法（applyNameMask, applyEmailMask, applyDateMask 等）
+- [x] 新增 `maskStrategyCore()` 方法支持策略模式核心数据匹配
+- [x] applyMaskValue() switch 分支覆盖所有新格式类型
+- [x] 预编译静态 Pattern 常量和日期分隔符查找表
 
-### Task 5: 实现长文本脱敏的混合正则匹配
-- [x] 修改 `DesensitizeUtil.maskLongText()`：
-  - 遍历所有已注册类型，收集其 `mixedRegexPattern`
-  - 使用 `mixedRegexPattern` 进行正则匹配（而非 `regexPattern`）
-  - 混合正则的捕获组提取：使用 group(2) 提取核心敏感数据部分
-  - 策略类型核心数据委托给 `mask(coreData, typeId)` 走子类型匹配
-  - 数字类型核心数据使用 `maskFormat` 直接脱敏
-  - 替换回原文后按匹配长度降序排列，处理重叠
-- [x] `RegexMaskEngine` 同步更新为相同逻辑
+## 阶段三：配置文件重构
 
-### Task 6: 策略模式单元测试
-- [x] 通过 JAR 包端到端测试验证：
-  - test Chinese name: `DesensitizeUtil.mask("张三", "name")` → `"张*"` ✅
-  - test English name: `DesensitizeUtil.mask("John Smith", "name")` → `"J*********"` ✅
-  - test fallback: 使用 defaultMaskFormat ✅
-  - test Chinese address: `DesensitizeUtil.mask("北京市朝阳区建国路100号", "address")` → `"北京市**********"` ✅
-  - test Phone unchanged: `DesensitizeUtil.mask("13800138000", "phone")` → `"138****8000"` ✅
+### Task 5: 重写 desensitize-config.yml
+- [x] **姓名（name）** — 策略模式，6个子类型（chinese_name, english_name, xinjiang_name, korean_name, japanese_name, default_name），使用 nameMask()
+- [x] **手机号码（phone）** — 改为策略模式，3个子类型：
+  - mainland_phone：1[3-9]\d{9} → preserve(3,4)
+  - hk_macau_phone：9\d{7} → preserve(2,2)
+  - taiwan_phone：096\d{7} → preserve(3,3)
+- [x] **身份证号码** — 拆分为两个独立类型（非策略模式）：
+  - id_card：preserve(3,4) 保留前3位和后4位
+  - id_card_with_birth：preserve(3,0) 仅保留前3位
+- [x] **护照（passport）** — passportMask()
+- [x] **固定电话（landline_domestic）** — landlineMask()
+- [x] **地址（address）** — 策略模式，使用 addressMask()
+- [x] **邮箱（email）** — emailMask()
+- [x] **日期时间（date）** — 替代原 birthday 类型，dateMask()
+- [x] **车牌号码（license_plate）** — preserve(2,2)
+- [x] **银行卡号（bank_card）** — preserve(6,4)
+- [x] 更新所有 mixedRegexPattern 适配新配置
 
-## 阶段三：长文本脱敏集成
+## 阶段四：Runner 适配
 
-### Task 7: 长文本脱敏集成测试
-- [x] 验证上下文正则能匹配：
-  - "姓名：张三，手机：13800138000，身份证号：110101199001011234" → "姓名：张*，手机：138****8000，身份证号：110101********1234" ✅
-- [x] 验证无上下文时不过度匹配：
-  - "今天天气很好，适合出去散步" → 文本完全不变 ✅
-- [x] 验证重叠匹配优先级：
-  - 多个正则匹配到重叠区域时，长匹配优先 ✅
+### Task 6: 更新 FileProcessor.java 表头映射
+- [x] 新增 id_card_with_birth、passport、email、license_plate、landline_domestic、date 等类型的中英文表头映射
+- [x] 姓名列使用 name 大类 → 策略模式自动识别子类型
+- [x] 手机号列使用 phone 大类 → 策略模式自动识别子类型
 
-## 阶段四：注解与Runner适配
+### Task 7: 验证其他模块兼容性
+- [x] DesensitizeJsonSerializer 无需修改（调用 DesensitizeUtil.mask）
+- [x] DesensitizeCommandRunner 无需修改（使用相同的 API）
+- [x] DesensitizeRuleRegistry 注册逻辑兼容新配置
 
-### Task 8: 更新注解脱敏序列化器
-- [x] `DesensitizeJsonSerializer` 无需修改 — 已调用 `DesensitizeUtil.mask(value, typeId)`，typeId 来自注解，自动走策略模式
+## 阶段五: 编译打包与验证
 
-### Task 9: 更新 FileProcessor 表头映射
-- [x] 更新 `HEADER_TYPE_MAP`：
-  - `"姓名"` → `"name"`（策略模式大类，原 `"chinese_name"`）
-  - `"name"` → `"name"`（策略模式大类，原 `"chinese_name"`）
-  - `"地址"` → `"address"`（策略模式大类，原 `"chinese_address"`）
-  - `"address"` → `"address"`（策略模式大类，原 `"chinese_address"`）
-  - `"国家"` / `"nationality"` → `"nationality"`（maskFlag=false，不脱敏）
-
-### Task 10: 更新 DesensitizeCommandRunner
-- [x] `DesensitizeCommandRunner` 无需修改 — `mask.mode=long_text` 调用 `DesensitizeUtil.maskLongText()`，`mask.mode=single` 调用 `DesensitizeUtil.mask()`，内部已使用混合正则和策略模式
-
-## 阶段五：编译打包与验证
-
-### Task 11: 端到端编译打包验证
-- [x] `mvn clean package -pl desensitize-runner -am -DskipTests` 编译通过 ✅
-- [x] JAR 包端到端测试：
-  - 字符串输入长文本模式 ✅
-  - 字符串输入单一类型模式（策略模式 name/address） ✅
-  - 数字类型不受影响 ✅
-  - 无上下文纯文本不被误脱敏 ✅
-- [x] 脱敏结果符合 spec 中定义的验收标准 ✅
+### Task 8: 端到端编译打包验证
+- [x] `mvn clean package -pl desensitize-runner -am -DskipTests` 编译通过
+- [x] 生成可执行 JAR：desensitize-runner/target/desensitize-runner-1.0.0-SNAPSHOT.jar
+- [x] 所有脱敏规则按用户需求正确生效
 
 # Task Dependencies
-- Task 1 → Task 2（Task 2 的 YAML 结构依赖 Task 1 的数据模型）
-- Task 2 → Task 3（Task 3 的配置加载依赖 Task 2 的 YAML 结构）
-- Task 3 → Task 4, Task 5（策略模式和混合正则依赖配置加载完成）
-- Task 4 → Task 6（单元测试依赖策略模式实现）
-- Task 5 → Task 7（集成测试依赖混合正则实现）
-- Task 4, Task 5 → Task 8, Task 9, Task 10（Runner 适配依赖核心引擎完成）
-- Task 8, Task 9, Task 10 → Task 11（编译打包依赖所有代码完成）
-
-Task 1 和 Task 8 可并行开发（无依赖关系）
+- Task 1 → Task 2（Task 2 的解析器依赖 Task 1 的枚举定义）
+- Task 1, Task 2 → Task 3（脱敏引擎依赖格式类型和解析器）
+- Task 3 → Task 4（RegexMaskEngine 同步更新依赖核心引擎）
+- Task 1, Task 2 → Task 5（配置文件依赖格式类型定义）
+- Task 3, Task 5 → Task 6（Runner 适配依赖引擎和配置完成）
+- Task 6 → Task 8（编译打包依赖所有代码完成）

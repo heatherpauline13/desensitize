@@ -1,4 +1,4 @@
-package com.desensitize.runner;
+package com.desensitize.web;
 
 import com.desensitize.core.engine.DesensitizeUtil;
 import com.opencsv.CSVReader;
@@ -28,6 +28,7 @@ public class FileProcessor {
         HEADER_TYPE_MAP.put("phone", "phone");
         HEADER_TYPE_MAP.put("身份证号", "id_card");
         HEADER_TYPE_MAP.put("id_card", "id_card");
+        HEADER_TYPE_MAP.put("身份证号（含生日）", "id_card_with_birth");
         HEADER_TYPE_MAP.put("id_card_with_birth", "id_card_with_birth");
         HEADER_TYPE_MAP.put("银行卡号", "bank_card");
         HEADER_TYPE_MAP.put("bank_card", "bank_card");

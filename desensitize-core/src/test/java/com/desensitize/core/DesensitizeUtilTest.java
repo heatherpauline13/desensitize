@@ -17,7 +17,7 @@ class DesensitizeUtilTest {
         registry.register(SensitiveTypeConfig.builder()
                 .typeId("chinese_name")
                 .regexPattern("[\u4e00-\u9fff]{2,4}")
-                .maskFormat("preserve(1,0)")
+                .maskFormat("nameMask()")
                 .maskChar("*")
                 .maskFlag(true)
                 .build());
@@ -33,7 +33,7 @@ class DesensitizeUtilTest {
         registry.register(SensitiveTypeConfig.builder()
                 .typeId("id_card")
                 .regexPattern("[1-9]\\d{5}(18|19|20)\\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx]")
-                .maskFormat("preserve(6,4)")
+                .maskFormat("preserve(3,4)")
                 .maskChar("*")
                 .maskFlag(true)
                 .build());
@@ -60,7 +60,7 @@ class DesensitizeUtilTest {
     @Test
     void testMaskChineseName() {
         assertEquals("张*", DesensitizeUtil.mask("张三", "chinese_name"));
-        assertEquals("王**", DesensitizeUtil.mask("王小明", "chinese_name"));
+        assertEquals("王小*", DesensitizeUtil.mask("王小明", "chinese_name"));
         assertEquals("李*", DesensitizeUtil.mask("李四", "chinese_name"));
     }
 
@@ -72,7 +72,7 @@ class DesensitizeUtilTest {
 
     @Test
     void testMaskIdCard() {
-        assertEquals("110101********1234", DesensitizeUtil.mask("110101199001011234", "id_card"));
+        assertEquals("110***********1234", DesensitizeUtil.mask("110101199001011234", "id_card"));
     }
 
     @Test
@@ -119,7 +119,7 @@ class DesensitizeUtilTest {
 
         assertTrue(result.contains("张*"));
         assertTrue(result.contains("138****8000"));
-        assertTrue(result.contains("110101********1234"));
+        assertTrue(result.contains("110***********1234"));
         assertFalse(result.contains("张三"));
         assertFalse(result.contains("13800138000"));
     }

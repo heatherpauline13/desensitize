@@ -6,39 +6,52 @@ desensitize:
     - typeId: "name"
       name: "姓名"
       strategyType: true
-      defaultMaskFormat: "maskAll()"
+      defaultMaskFormat: "nameMask()"
       mixedRegexPattern: "(姓名[：:]\\s*|尊敬的|亲爱的)([\\u4e00-\\u9fff]{2,4}|[A-Z][a-z]+\\s[A-Z][a-z]+)(先生|女士|同志)?"
       subTypes:
         - typeId: "chinese_name"
           name: "中文姓名"
           regexPattern: "[\\u4e00-\\u9fff]{2,4}"
-          maskFormat: "preserve(1,0)"
+          maskFormat: "nameMask()"
         - typeId: "english_name"
           name: "英文姓名"
           regexPattern: "[A-Z][a-z]+\\s[A-Z][a-z]+"
-          maskFormat: "preserve(1,0)"
+          maskFormat: "nameMask()"
         - typeId: "xinjiang_name"
           name: "新疆少数民族姓名"
           regexPattern: "[\\u4e00-\\u9fff]+·[\\u4e00-\\u9fff]+"
-          maskFormat: "preserve(1,1)"
+          maskFormat: "nameMask()"
         - typeId: "korean_name"
           name: "韩文姓名"
           regexPattern: "[\\uac00-\\ud7af]{2,4}"
-          maskFormat: "preserve(1,0)"
+          maskFormat: "nameMask()"
         - typeId: "japanese_name"
           name: "日文姓名"
           regexPattern: "[\\u3040-\\u309f\\u30a0-\\u30ff\\u4e00-\\u9fff]{2,4}"
-          maskFormat: "preserve(1,0)"
+          maskFormat: "nameMask()"
         - typeId: "default_name"
           name: "默认姓名"
-          maskFormat: "maskAll()"
+          maskFormat: "nameMask()"
 
-    # ========== 手机号码 ==========
+    # ========== 手机号码（策略模式） ==========
     - typeId: "phone"
       name: "手机号码"
-      regexPattern: "1[3-9]\\d{9}"
-      mixedRegexPattern: "(手机|电话|联系方式|Tel)[：:]\\s*(1[3-9]\\d{9})"
-      maskFormat: "preserve(3,4)"
+      strategyType: true
+      defaultMaskFormat: "preserve(3,4)"
+      mixedRegexPattern: "(手机|电话|联系方式|Tel|Phone|手机号)[：:]\\s*(1[3-9]\\d{9}|9\\d{7}|096\\d{7})"
+      subTypes:
+        - typeId: "mainland_phone"
+          name: "大陆手机号码"
+          regexPattern: "1[3-9]\\d{9}"
+          maskFormat: "preserve(3,4)"
+        - typeId: "hk_macau_phone"
+          name: "港澳手机号码"
+          regexPattern: "9\\d{7}"
+          maskFormat: "preserve(2,2)"
+        - typeId: "taiwan_phone"
+          name: "台湾手机号码"
+          regexPattern: "096\\d{7}"
+          maskFormat: "preserve(3,3)"
 
     # ========== 国际手机号 ==========
     - typeId: "international_phone"
@@ -51,94 +64,101 @@ desensitize:
     - typeId: "landline_domestic"
       name: "国内固定电话"
       regexPattern: "0\\d{2,3}-\\d{7,8}"
-      mixedRegexPattern: "(固话|座机|电话)[：:]\\s*(0\\d{2,3}-\\d{7,8})"
-      maskFormat: "preserve(0,4)"
+      mixedRegexPattern: "(固话|座机|电话|备用电话|联系电话)[：:]\\s*(0\\d{2,3}-\\d{7,8})"
+      maskFormat: "landlineMask()"
 
     # ========== 固定电话（国际） ==========
     - typeId: "landline_international"
       name: "国际固定电话"
       regexPattern: "\\+\\d{1,3}-\\d{2,4}-\\d{6,10}"
       mixedRegexPattern: "(国际固话|国际座机)[：:]\\s*(\\+\\d{1,3}-\\d{2,4}-\\d{6,10})"
-      maskFormat: "preserve(0,4)"
+      maskFormat: "preserve(2,2)"
 
-    # ========== 身份证号码 ==========
+    # ========== 身份证号码（保留前三位和后四位） ==========
     - typeId: "id_card"
       name: "身份证号码"
       regexPattern: "[1-9]\\d{5}(18|19|20)\\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx]"
       mixedRegexPattern: "(身份证|证件号|ID|身份证号)[：:]\\s*([1-9]\\d{5}(?:18|19|20)\\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx])"
-      maskFormat: "preserve(6,4)"
+      maskFormat: "preserve(3,4)"
+
+    # ========== 身份证号码（仅保留前三位） ==========
+    - typeId: "id_card_with_birth"
+      name: "身份证号码(含出生日期)"
+      regexPattern: "[1-9]\\d{5}(18|19|20)\\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx]"
+      mixedRegexPattern: "(身份证|证件号|ID|身份证号)[：:]\\s*([1-9]\\d{5}(?:18|19|20)\\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\\d|3[01])\\d{3}[\\dXx])"
+      maskFormat: "preserve(3,0)"
 
     # ========== 护照号码 ==========
     - typeId: "passport"
       name: "护照号码"
-      regexPattern: "[A-Za-z0-9]{7,9}"
-      mixedRegexPattern: "(护照|Passport)[：:]\\s*([A-Za-z0-9]{7,9})"
+      regexPattern: "[A-Za-z]\\d{7,8}"
+      mixedRegexPattern: "(护照号|护照|Passport|护照号码)[：:]\\s*([A-Za-z]\\d{7,8})"
       maskFormat: "preserve(2,2)"
 
     # ========== 驾驶证号码 ==========
     - typeId: "driver_license"
       name: "驾驶证号码"
       regexPattern: "\\d{15,18}"
-      mixedRegexPattern: "(驾驶证|驾照|Driver)[：:]\\s*(\\d{15,18})"
+      mixedRegexPattern: "(驾驶证号|驾驶证|驾照|Driver|驾驶证号码)[：:]\\s*(\\d{15,18})"
       maskFormat: "preserve(4,4)"
 
     # ========== 军官证号码 ==========
     - typeId: "military_id"
       name: "军官证号码"
       regexPattern: "[\\u4e00-\\u9fff]{2,4}\\d{6,8}"
-      mixedRegexPattern: "(军官证|士兵证)[：:]\\s*([\\u4e00-\\u9fff]{2,4}\\d{6,8})"
+      mixedRegexPattern: "(军官证号|军官证|士兵证|军官证号码)[：:]\\s*([\\u4e00-\\u9fff]{2,4}\\d{6,8})"
       maskFormat: "preserve(2,4)"
 
     # ========== 银行卡号 ==========
     - typeId: "bank_card"
       name: "银行卡号"
       regexPattern: "\\d{16,19}"
-      mixedRegexPattern: "(银行卡|卡号|账号)[：:]\\s*(\\d{16,19})"
+      mixedRegexPattern: "(银行卡号|银行卡|卡号|账号|银行卡号码)[：:]\\s*(\\d{16,19})"
       maskFormat: "preserve(6,4)"
 
     # ========== 存折账号 ==========
     - typeId: "deposit_book"
       name: "存折账号"
       regexPattern: "\\d{16,22}"
-      mixedRegexPattern: "(存折|存折账号)[：:]\\s*(\\d{16,22})"
+      mixedRegexPattern: "(存折号|存折|存折账号)[：:]\\s*(\\d{16,22})"
       maskFormat: "preserve(6,4)"
 
     # ========== 地址（策略模式） ==========
     - typeId: "address"
       name: "地址"
       strategyType: true
-      defaultMaskFormat: "maskAll()"
-      mixedRegexPattern: "(地址|住址|Address)[：:]\\s*(.+?)(?:[，,。.]|$)"
+      defaultMaskFormat: "addressMask()"
+      mixedRegexPattern: "(地址|住址|Address|家庭住址|通讯地址)[：:]\\s*(.+?)(?=\\n|$)"
       subTypes:
         - typeId: "chinese_address"
           name: "中文地址"
-          regexPattern: "[\\u4e00-\\u9fff]{4,}?(省|市|区|县|镇|村|路|街|巷|号|楼|室|层|座)"
-          maskFormat: "preserve(3,0)"
+          regexPattern: "[\\u4e00-\\u9fff]+(省|市|区|县|镇|村|路|街|巷|号|楼|室|层|座)"
+          maskFormat: "addressMask()"
         - typeId: "english_address"
           name: "英文地址"
           regexPattern: "\\d+\\s[A-Za-z]+(\\s[A-Za-z]+)*(\\s(?:Street|Road|Ave|Lane|Drive|Blvd))"
           maskFormat: "preserve(0,6)"
         - typeId: "japanese_address"
           name: "日文地址"
-          regexPattern: "[\\u4e00-\\u9fff\\u30a0-\\u30ff]{3,}?(都|道|府|県|市|区|町|村|番)"
+          regexPattern: "[\\u4e00-\\u9fff\\u30a0-\\u30ff]+(都|道|府|県|市|区|町|村|番)"
           maskFormat: "preserve(3,0)"
         - typeId: "default_address"
           name: "默认地址"
-          maskFormat: "maskAll()"
+          maskFormat: "addressMask()"
 
     # ========== 邮箱地址 ==========
     - typeId: "email"
       name: "邮箱地址"
       regexPattern: "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
       mixedRegexPattern: "(邮箱|Email|邮件|E-mail)[：:]\\s*([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,})"
-      maskFormat: "preserve(2,2)"
+      maskFormat: "emailMask()"
 
-    # ========== 生日 ==========
-    - typeId: "birthday"
-      name: "生日"
+    # ========== 日期时间 ==========
+    - typeId: "date"
+      name: "日期时间"
       regexPattern: "\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}"
-      mixedRegexPattern: "(生日|出生日期|Birth)[：:]\\s*(\\d{4}[-/]\\d{1,2}[-/]\\d{1,2})"
-      maskFormat: "maskAll()"
+      mixedRegexPattern: "(日期|时间|生日|出生日期|Birth|Date)[：:]\\s*(\\d{4}[-/]\\d{1,2}[-/]\\d{1,2})"
+      maskFormat: "dateMask()"
 
     # ========== IP地址 ==========
     - typeId: "ip_address"
@@ -151,8 +171,8 @@ desensitize:
     - typeId: "mac_address"
       name: "MAC地址"
       regexPattern: "([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}"
-      mixedRegexPattern: "(MAC|物理地址|Mac)[：:]\\s*((?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2})"
-      maskFormat: "preserve(8,5)"
+      mixedRegexPattern: "(MAC地址|MAC|物理地址|Mac|mac)[：:]\\s*((?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2})"
+      maskFormat: "preserve(8,0)"
 
     # ========== 车牌号码 ==========
     - typeId: "license_plate"
@@ -166,15 +186,15 @@ desensitize:
       name: "人民币金额"
       regexPattern: "[¥￥]\\d{1,3}(,\\d{3})*(\\.\\d{2})?"
       mixedRegexPattern: "(金额|人民币)[：:]\\s*([¥￥]\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})?)"
-      maskFormat: "maskAll()"
+      maskFormat: "preserve(1,0)"
 
     # ========== 外币金额 ==========
     - typeId: "foreign_amount"
       name: "外币金额"
       regexPattern: "[$€£]\\d{1,3}(,\\d{3})*(\\.\\d{2})?"
       mixedRegexPattern: "(外币|美元|欧元|英镑)[：:]\\s*([$€£]\\d{1,3}(?:,\\d{3})*(?:\\.\\d{2})?)"
-      maskFormat: "maskAll()"
-
+      maskFormat: "preserve(1,0)"
+      
     # ========== 验证码 ==========
     - typeId: "verification_code"
       name: "验证码"
@@ -182,7 +202,7 @@ desensitize:
       mixedRegexPattern: "(验证码|校验码)[：:]\\s*(\\d{4,6})"
       maskFormat: "maskAll()"
 
-    # ========== 国籍（不脱敏——正则过于宽泛） ==========
+    # ========== 国籍（不脱敏） ==========
     - typeId: "nationality"
       name: "国籍"
       regexPattern: "[\\u4e00-\\u9fff]{2,4}"
@@ -199,11 +219,11 @@ desensitize:
     # ========== 性别（不脱敏） ==========
     - typeId: "gender"
       name: "性别"
-      regexPattern: "[男女]"
+      regexPattern: "[男女]|[Mm]ale|[Ff]emale"
       maskFormat: "maskAll()"
       maskFlag: false
 
   ai:
-    provider: "openai"
-    model: "gpt-4o"
-    prompt-template: "请对以下文本进行脱敏处理，将姓名、手机号、身份证号、银行卡号、邮箱地址、IP地址、车牌号等敏感信息替换为*号掩码，保持其他内容不变。脱敏规则：姓名保留首字其余替换为*（如张三→张*），手机号保留前3后4中间4位替换为*（如138****8000），身份证号保留前6后4中间替换为*。请只输出脱敏后的文本不要输出其他内容：\n{content}"
+    prompt-template: |
+      你是一个敏感数据审核专家，请识别以下内容中的敏感信息，并针对不同的敏感信息类型对文本中的数据进行掩码屏蔽，掩码使用*号，输出处理后的结果。
+      注意：请只返回脱敏后的文本内容，不要添加任何解释或额外文字，不要省略*号。
