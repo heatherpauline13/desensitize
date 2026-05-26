@@ -1,4 +1,4 @@
-package com.desensitize.runner.config;
+package com.desensitize.web.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,7 +33,6 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 映射 result 目录到 /result/** 路径
         Path resultPath = Paths.get("result").toAbsolutePath().normalize();
         String resultLocation = "file:" + resultPath.toString() + "/";
         

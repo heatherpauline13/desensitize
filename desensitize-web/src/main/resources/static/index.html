@@ -876,51 +876,80 @@
                 showLoading(true);
 
                 try {
-                    const response = await fetch(`${API_BASE}/multi-type`, {
+                    const requestData = {
+                        name: inputs.name,
+                        phone: inputs.phone,
+                        idCard: inputs.id_card,
+                        idCardWithBirth: inputs.id_card_with_birth,
+                        email: inputs.email,
+                        bankCard: inputs.bank_card,
+                        depositBook: inputs.deposit_book,
+                        address: inputs.address,
+                        passport: inputs.passport,
+                        driverLicense: inputs.driver_license,
+                        militaryId: inputs.military_id,
+                        licensePlate: inputs.license_plate,
+                        ipAddress: inputs.ip_address,
+                        macAddress: inputs.mac_address,
+                        birthday: inputs.birthday,
+                        landline: inputs.landline,
+                        internationalPhone: inputs.international,
+                        rmbAmount: inputs.rmb,
+                        foreignAmount: inputs.foreign,
+                        verificationCode: inputs.verification,
+                        nationality: inputs.nationality,
+                        ethnicity: inputs.ethnicity,
+                        gender: inputs.gender
+                    };
+
+                    const response = await fetch(`${API_BASE}/annotation/auto`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(inputs)
+                        body: JSON.stringify(requestData)
                     });
                     const data = await response.json();
 
-                    if (data.success) {
-                        const results = data.data.results || {};
-                        const errors = data.data.errors || {};
-                        
-                        if (Object.keys(errors).length > 0) {
-                            const errorList = Object.values(errors).join('\n');
-                            alert('以下字段格式不正确：\n' + errorList);
-                        }
-                        
-                        let resultHtml = '';
-                        const labels = {
-                            phone: '📱 手机号', name: '👤 姓名', id_card: '🆔 身份证号',
-                            id_card_with_birth: '🆔 身份证号（含生日）', email: '✉️ 邮箱', bank_card: '💳 银行卡号', address: '📍 地址',
-                            license_plate: '🚗 车牌号', passport: '🌍 护照号', driver_license: '🪪 驾驶证号',
-                            military_id: '💂 军官证号', deposit_book: '🏦 存折号', ip_address: '🌐 IP地址',
-                            mac_address: '🔗 MAC地址', birthday: '🎂 生日', landline: '📞 固定电话',
-                            international: '🌎 国际电话', rmb: '💰 人民币金额', foreign: '💵 外币金额',
-                            verification: '🔢 验证码', id_card_with_birth: '� 身份证号（含生日）'
-                        };
-                        
-                        Object.entries(inputs).forEach(([key, value]) => {
-                            if (value && value.trim()) {
-                                const masked = results[key] || value;
-                                const isError = errors.hasOwnProperty(key);
+                    let resultHtml = '';
+                    const fieldMap = {
+                        phone: { label: '📱 手机号', key: 'phone' },
+                        name: { label: '👤 姓名', key: 'name' },
+                        id_card: { label: '🆔 身份证号', key: 'idCard' },
+                        id_card_with_birth: { label: '🆔 身份证号（含生日）', key: 'idCardWithBirth' },
+                        email: { label: '✉️ 邮箱', key: 'email' },
+                        bank_card: { label: '💳 银行卡号', key: 'bankCard' },
+                        deposit_book: { label: '🏦 存折号', key: 'depositBook' },
+                        address: { label: '📍 地址', key: 'address' },
+                        passport: { label: '🌍 护照号', key: 'passport' },
+                        driver_license: { label: '🪪 驾驶证号', key: 'driverLicense' },
+                        military_id: { label: '💂 军官证号', key: 'militaryId' },
+                        license_plate: { label: '🚗 车牌号', key: 'licensePlate' },
+                        ip_address: { label: '🌐 IP地址', key: 'ipAddress' },
+                        mac_address: { label: '🔗 MAC地址', key: 'macAddress' },
+                        birthday: { label: '🎂 生日', key: 'birthday' },
+                        landline: { label: '📞 固定电话', key: 'landline' },
+                        international: { label: '🌎 国际电话', key: 'internationalPhone' },
+                        rmb: { label: '💰 人民币金额', key: 'rmbAmount' },
+                        foreign: { label: '💵 外币金额', key: 'foreignAmount' },
+                        verification: { label: '🔢 验证码', key: 'verificationCode' }
+                    };
+
+                    Object.entries(inputs).forEach(([inputKey, value]) => {
+                        if (value && value.trim()) {
+                            const fieldInfo = fieldMap[inputKey];
+                            if (fieldInfo) {
+                                const masked = data[fieldInfo.key] || value;
                                 resultHtml += `
                                     <div class="multi-input-item">
-                                        <label>${labels[key] || key}</label>
-                                        <input type="text" value="${isError ? '格式错误' : masked}" readonly>
+                                        <label>${fieldInfo.label}</label>
+                                        <input type="text" value="${masked}" readonly>
                                     </div>
                                 `;
                             }
-                        });
-                        
-                        document.getElementById('result-multi-form').innerHTML = resultHtml;
-                        document.getElementById('multi-result-area').style.display = 'block';
-                    } else {
-                        alert('脱敏失败: ' + data.message);
-                    }
+                        }
+                    });
+                    
+                    document.getElementById('result-multi-form').innerHTML = resultHtml;
+                    document.getElementById('multi-result-area').style.display = 'block';
                 } catch (error) {
                     alert('请求失败: ' + error.message);
                 } finally {

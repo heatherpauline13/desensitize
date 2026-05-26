@@ -1,4 +1,4 @@
-package com.desensitize.runner.controller;
+package com.desensitize.web.controller;
 
 import com.desensitize.core.engine.DesensitizeUtil;
 import lombok.AllArgsConstructor;
@@ -162,7 +162,7 @@ public class DesensitizeController {
             String outputFilename = "masked_" + timestamp + originalFilename.substring(originalFilename.lastIndexOf("."));
             Path outputPath = resultDir.resolve(outputFilename);
 
-            com.desensitize.runner.FileProcessor.processTableFile(tempInputPath.toAbsolutePath().toString(), outputPath.toAbsolutePath().toString());
+            com.desensitize.web.FileProcessor.processTableFile(tempInputPath.toAbsolutePath().toString(), outputPath.toAbsolutePath().toString());
 
             Map<String, String> data = new HashMap<>();
             data.put("originalFile", originalFilename);
@@ -252,6 +252,17 @@ public class DesensitizeController {
                         results.put("id_card", DesensitizeUtil.mask(idCard.trim(), "id_card"));
                     } else {
                         errors.put("id_card", "身份证号格式不正确");
+                    }
+                }
+            }
+
+            if (inputs.containsKey("id_card_with_birth")) {
+                String idCardWithBirth = inputs.get("id_card_with_birth");
+                if (idCardWithBirth != null && !idCardWithBirth.trim().isEmpty()) {
+                    if (idCardPattern.matcher(idCardWithBirth.trim()).matches()) {
+                        results.put("id_card_with_birth", DesensitizeUtil.mask(idCardWithBirth.trim(), "id_card_with_birth"));
+                    } else {
+                        errors.put("id_card_with_birth", "身份证号格式不正确");
                     }
                 }
             }
@@ -424,17 +435,6 @@ public class DesensitizeController {
                         results.put("verification", DesensitizeUtil.mask(verification.trim(), "verification_code"));
                     } else {
                         errors.put("verification", "验证码格式不正确，应为4-8位数字");
-                    }
-                }
-            }
-
-            if (inputs.containsKey("english")) {
-                String english = inputs.get("english");
-                if (english != null && !english.trim().isEmpty()) {
-                    if (english.trim().matches("[A-Z][a-z]+(?:\\s[A-Z][a-z]+)?")) {
-                        results.put("english", DesensitizeUtil.mask(english.trim(), "english_name"));
-                    } else {
-                        errors.put("english", "英文姓名格式不正确，应为名 姓格式");
                     }
                 }
             }
