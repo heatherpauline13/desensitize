@@ -23,6 +23,7 @@
         <module>desensitize-annotation</module>
         <module>desensitize-ai</module>
         <module>desensitize-runner</module>
+        <module>desensitize-web</module>
     </modules>
 
     <properties>

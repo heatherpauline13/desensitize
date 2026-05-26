@@ -74,28 +74,27 @@ public class RegexMaskEngine {
 
         List<MaskMatch> allMatches = collectMixedMatches(text);
 
-        boolean[] maskedPositions = new boolean[text.length()];
+        // 按位置从后向前排序，避免替换后位置偏移
+        allMatches.sort(Comparator.comparingInt(MaskMatch::getStart).reversed());
+
         StringBuilder result = new StringBuilder(text);
+        int offset = 0;
 
         for (MaskMatch match : allMatches) {
-            boolean alreadyMasked = false;
-            for (int i = match.getStart(); i < match.getEnd() && i < maskedPositions.length; i++) {
-                if (maskedPositions[i]) {
-                    alreadyMasked = true;
-                    break;
-                }
-            }
+            int adjustedStart = match.getStart() + offset;
+            int adjustedEnd = match.getEnd() + offset;
 
-            if (alreadyMasked) {
+            if (adjustedStart >= result.length()) {
                 continue;
             }
-
-            result.replace(match.getStart(), match.getEnd(), match.getMaskedValue());
-
-            int newEnd = match.getStart() + match.getMaskedValue().length();
-            for (int i = match.getStart(); i < newEnd && i < maskedPositions.length; i++) {
-                maskedPositions[i] = true;
+            if (adjustedEnd > result.length()) {
+                adjustedEnd = result.length();
             }
+
+            result.replace(adjustedStart, adjustedEnd, match.getMaskedValue());
+
+            // 更新偏移量
+            offset += match.getMaskedValue().length() - (match.getEnd() - match.getStart());
         }
 
         return result.toString();
