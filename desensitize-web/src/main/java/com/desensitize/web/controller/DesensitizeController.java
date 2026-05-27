@@ -27,6 +27,12 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class DesensitizeController {
 
+    private static final Path RESULT_DIR = Paths.get("result").toAbsolutePath().normalize();
+
+    private static final long MAX_STRING_LENGTH = 100000;
+
+    private static final long MAX_FILE_SIZE = 50 * 1024 * 1024;
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -57,6 +63,12 @@ public class DesensitizeController {
     public ResponseEntity<ResponseResult> desensitizeString(@RequestBody StringRequest request) {
         try {
             String content = request.getContent();
+            if (content == null || content.isEmpty()) {
+                return ResponseEntity.badRequest().body(ResponseResult.error("内容不能为空"));
+            }
+            if (content.length() > MAX_STRING_LENGTH) {
+                return ResponseEntity.badRequest().body(ResponseResult.error("内容过长，最大支持" + MAX_STRING_LENGTH + "字符"));
+            }
             String mode = request.getMode() != null ? request.getMode() : "long_text";
             
             String result;
@@ -98,22 +110,34 @@ public class DesensitizeController {
                 return ResponseEntity.badRequest().body(ResponseResult.error("请选择要上传的文件"));
             }
 
-            String originalFilename = file.getOriginalFilename();
-            String extension = originalFilename != null && originalFilename.contains(".") 
-                ? originalFilename.substring(originalFilename.lastIndexOf(".")) 
-                : ".txt";
-
-            Path resultDir = Paths.get("result");
-            if (!Files.exists(resultDir)) {
-                Files.createDirectories(resultDir);
+            if (file.getSize() > MAX_FILE_SIZE) {
+                return ResponseEntity.badRequest().body(ResponseResult.error("文件过大，最大支持50MB"));
             }
 
+            String originalFilename = sanitizeFilename(file.getOriginalFilename());
+            if (originalFilename == null || originalFilename.isBlank()) {
+                return ResponseEntity.badRequest().body(ResponseResult.error("文件名不合法"));
+            }
+
+            String extension = originalFilename.contains(".")
+                ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                : ".txt";
+
+            ensureResultDir();
+
             String content = new String(file.getBytes(), "UTF-8");
+            if (content.length() > MAX_STRING_LENGTH) {
+                return ResponseEntity.badRequest().body(ResponseResult.error("文件内容过长，最大支持" + MAX_STRING_LENGTH + "字符"));
+            }
+
             String maskedContent = DesensitizeUtil.maskLongText(content);
 
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             String outputFilename = "masked_" + timestamp + extension;
-            Path outputPath = resultDir.resolve(outputFilename);
+            Path outputPath = RESULT_DIR.resolve(outputFilename).normalize();
+            if (!outputPath.startsWith(RESULT_DIR)) {
+                return ResponseEntity.badRequest().body(ResponseResult.error("非法的输出路径"));
+            }
             Files.writeString(outputPath, maskedContent, java.nio.charset.StandardCharsets.UTF_8);
 
             Map<String, String> data = new HashMap<>();
@@ -139,28 +163,43 @@ public class DesensitizeController {
                 return ResponseEntity.badRequest().body(ResponseResult.error("请选择要脱敏的表格文件"));
             }
 
-            String originalFilename = file.getOriginalFilename();
-            if (originalFilename == null || 
-                (!originalFilename.endsWith(".xlsx") && !originalFilename.endsWith(".xls") && !originalFilename.endsWith(".csv"))) {
+            if (file.getSize() > MAX_FILE_SIZE) {
+                return ResponseEntity.badRequest().body(ResponseResult.error("文件过大，最大支持50MB"));
+            }
+
+            String originalFilename = sanitizeFilename(file.getOriginalFilename());
+            if (originalFilename == null || originalFilename.isBlank()) {
+                return ResponseEntity.badRequest().body(ResponseResult.error("文件名不合法"));
+            }
+
+            if (!originalFilename.endsWith(".xlsx") && !originalFilename.endsWith(".xls") && !originalFilename.endsWith(".csv")) {
                 return ResponseEntity.badRequest().body(ResponseResult.error("仅支持xlsx、xls和csv格式的表格文件"));
             }
 
             Path basePath = Paths.get(".").toAbsolutePath().normalize();
-            Path tempDir = basePath.resolve("temp");
-            Path resultDir = basePath.resolve("result");
+            Path tempDir = basePath.resolve("temp").normalize();
+            if (!tempDir.startsWith(basePath)) {
+                return ResponseEntity.badRequest().body(ResponseResult.error("非法的临时目录路径"));
+            }
+
+            ensureResultDir();
             if (!Files.exists(tempDir)) {
                 Files.createDirectories(tempDir);
             }
-            if (!Files.exists(resultDir)) {
-                Files.createDirectories(resultDir);
-            }
 
-            Path tempInputPath = tempDir.resolve("input_" + System.currentTimeMillis() + "_" + originalFilename);
+            String safeName = String.valueOf(System.currentTimeMillis()) + "_" + originalFilename;
+            Path tempInputPath = tempDir.resolve(safeName).normalize();
+            if (!tempInputPath.startsWith(tempDir)) {
+                return ResponseEntity.badRequest().body(ResponseResult.error("非法的临时文件路径"));
+            }
             file.transferTo(tempInputPath.toFile());
 
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             String outputFilename = "masked_" + timestamp + originalFilename.substring(originalFilename.lastIndexOf("."));
-            Path outputPath = resultDir.resolve(outputFilename);
+            Path outputPath = RESULT_DIR.resolve(outputFilename).normalize();
+            if (!outputPath.startsWith(RESULT_DIR)) {
+                return ResponseEntity.badRequest().body(ResponseResult.error("非法的输出路径"));
+            }
 
             com.desensitize.web.FileProcessor.processTableFile(tempInputPath.toAbsolutePath().toString(), outputPath.toAbsolutePath().toString());
 
@@ -455,28 +494,64 @@ public class DesensitizeController {
     @GetMapping("/download/{filename}")
     public ResponseEntity<byte[]> downloadFile(@PathVariable String filename) {
         try {
-            Path filePath = Paths.get("result").resolve(filename).normalize();
-            
-            if (!Files.exists(filePath)) {
+            String safeFilename = sanitizeFilename(filename);
+            if (safeFilename == null || safeFilename.isBlank()) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            Path filePath = RESULT_DIR.resolve(safeFilename).normalize();
+
+            if (!filePath.startsWith(RESULT_DIR)) {
+                log.warn("拒绝非法的文件下载请求: {}", filename);
+                return ResponseEntity.badRequest().build();
+            }
+
+            if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
                 return ResponseEntity.notFound().build();
             }
 
+            long fileSize = Files.size(filePath);
+            if (fileSize > MAX_FILE_SIZE) {
+                return ResponseEntity.badRequest().build();
+            }
+
             byte[] fileContent = Files.readAllBytes(filePath);
-            
-            String encodedFilename = URLEncoder.encode(filename, "UTF-8").replace("+", "%20");
-            
+
+            String encodedFilename = URLEncoder.encode(safeFilename, "UTF-8").replace("+", "%20");
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType("application/octet-stream"));
             headers.setContentDispositionFormData("attachment", encodedFilename);
             headers.setContentLength(fileContent.length);
-            headers.set("Content-Encoding", "UTF-8");
-            
+
             return ResponseEntity.ok()
                     .headers(headers)
                     .body(fileContent);
         } catch (IOException e) {
             log.error("下载文件失败", e);
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    private static String sanitizeFilename(String filename) {
+        if (filename == null || filename.isBlank()) {
+            return null;
+        }
+        String name = filename.replace("\\", "/");
+        int lastSlash = name.lastIndexOf('/');
+        if (lastSlash >= 0) {
+            name = name.substring(lastSlash + 1);
+        }
+        name = name.replaceAll("[.\\\\/:*?\"<>|]", "");
+        if (name.isEmpty() || ".".equals(name) || "..".equals(name)) {
+            return null;
+        }
+        return name;
+    }
+
+    private static void ensureResultDir() throws IOException {
+        if (!Files.exists(RESULT_DIR)) {
+            Files.createDirectories(RESULT_DIR);
         }
     }
 }

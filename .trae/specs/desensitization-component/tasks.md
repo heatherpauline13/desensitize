@@ -71,6 +71,45 @@
 - [x] 生成可执行 JAR：desensitize-runner/target/desensitize-runner-1.0.0-SNAPSHOT.jar
 - [x] 所有脱敏规则按用户需求正确生效
 
+## 阶段六：Web模块（desensitize-web）
+
+### Task 9: 创建Web模块
+- [x] 创建 desensitize-web 模块，依赖 core、ai、annotation
+- [x] 创建 DesensitizeWebApplication 启动类，扫描所有模块包
+- [x] 配置 WebConfig（CORS + 静态资源映射）
+- [x] 开发前端界面 index.html（三Tab页：字符串/文件/表格脱敏）
+- [x] 实现 DesensitizeController（字符串/文件/表格/多类型/下载 API）
+- [x] 实现 AnnotationController（注解脱敏演示）
+- [x] 创建 DesensitizedDataVO（23个敏感字段 + @Desensitize 注解）
+
+### Task 10: Web模块配置文件
+- [x] 在 desensitize-web 添加 application.yml（端口8080，导入desensitize-config.yml）
+- [x] 在 desensitize-web 添加 desensitize-config.yml（覆盖core默认配置）
+
+## 阶段七：AI文件审核功能
+
+### Task 11: 扩展AI模块
+- [x] 创建 AuditResult 模型类（type, content, suggestion）
+- [x] 扩展 DesensitizeConfigProperties.AiConfig 新增 auditPromptTemplate 字段
+- [x] AiDesensitizeUtil 新增 auditFile() 方法
+- [x] auditFile() 将文件内容发送给AI，解析JSON返回 List<AuditResult>
+- [x] desensitize-config.yml 新增 ai.audit-prompt-template 提示词模板
+
+## 阶段八：配置文件加载优先级
+
+### Task 12: 优化配置加载
+- [x] desensitize-core 保留默认 desensitize-config.yml
+- [x] desensitize-web 提供独立 desensitize-config.yml
+- [x] Web模块类路径优先加载自身配置文件
+
+## 阶段九：安全加固
+
+### Task 13: 安全审核与改进
+- [x] 文件下载路径使用 normalize() + startsWith() 防目录穿越
+- [x] 上传文件名过滤 `..`、`/`、`\` 危险字符
+- [x] 文件内容上传大小限制
+- [x] 所有外部输入进行空值和长度校验
+
 # Task Dependencies
 - Task 1 → Task 2（Task 2 的解析器依赖 Task 1 的枚举定义）
 - Task 1, Task 2 → Task 3（脱敏引擎依赖格式类型和解析器）
@@ -78,3 +117,6 @@
 - Task 1, Task 2 → Task 5（配置文件依赖格式类型定义）
 - Task 3, Task 5 → Task 6（Runner 适配依赖引擎和配置完成）
 - Task 6 → Task 8（编译打包依赖所有代码完成）
+- Task 9 → Task 10（配置文件依赖模块创建完成）
+- Task 10 → Task 12（配置优先级依赖Web模块配置文件存在）
+- Task 1~5 → Task 13（安全审核依赖全部代码完成）

@@ -2,11 +2,22 @@
 
 ## 概述
 
-* **摘要**: 基于Spring Boot框架实现一个可独立运行的数据脱敏组件(JAR包)。组件通过YAML配置文件定义敏感数据类型及其脱敏规则（精确匹配正则、混合上下文正则、脱敏格式、掩码符号），通过注解方式标记需要脱敏的字段。支持单一类型脱敏、长文本全面扫描脱敏、以及基于Spring AI的内嵌式AI脱敏三种模式。JAR包支持命令行运行，可处理字符串输入（输出到控制台）、文档文件（长文本脱敏后保存到result目录）和表格文件（逐字段脱敏后保存到result目录）。
+* **摘要**: 基于Spring Boot框架实现一个可独立运行的数据脱敏组件。采用多模块Maven项目结构，包含核心引擎(core)、注解脱敏(annotation)、AI脱敏(ai)、命令行运行器(runner)、Web应用(web)五个模块。组件通过YAML配置文件定义敏感数据类型及其脱敏规则，通过注解方式标记需要脱敏的字段。支持单一类型脱敏、长文本全面扫描脱敏、基于Spring AI的AI脱敏三种模式。提供命令行运行和Web界面两种使用方式，支持字符串输入、文档文件、表格文件处理，以及AI文件敏感数据审核。
 
 * **目的**: 为各类Java应用提供统一的符合国家标准的敏感数据脱敏能力，降低敏感信息泄露风险。
 
 * **目标用户**: Java后端开发者、数据安全工程师。
+
+## 项目模块结构
+
+| 模块 | 说明 | 内部依赖 |
+|------|------|----------|
+| desensitize-parent | 父POM，统一依赖管理 | — |
+| desensitize-core | 核心脱敏引擎、规则注册中心、配置文件 | — |
+| desensitize-annotation | Jackson注解序列化脱敏 | core |
+| desensitize-ai | Spring AI大模型脱敏及文件审核 | core |
+| desensitize-runner | 命令行运行器，可执行JAR | core, ai |
+| desensitize-web | Web应用，前端界面+API | core, ai, annotation |
 
 ## 目标
 
@@ -15,7 +26,9 @@
 * **长文本脱敏使用混合上下文正则**，通过上下文约束避免误匹配
 * **非数字类型（姓名、手机号、地址）采用策略模式**，配置文件两级结构（大类 → 子类型），脱敏时自动识别子类型
 * 提供基于Spring AI的AI脱敏方法
-* 提供可独立运行的JAR包，支持字符串、文档文件、表格文件三种输入方式
+* 提供基于Spring AI的文件敏感数据审核功能
+* 提供可独立运行的JAR包和Web界面两种使用方式
+* 配置文件支持模块化覆盖：主模块的 `desensitize-config.yml` 优先于依赖模块
 
 ## 功能需求
 
@@ -122,6 +135,22 @@
 13. 验证码
 14. 国籍/民族/性别（maskFlag=false）
 
+### FR-5: AI文件敏感数据审核
+
+* `AiDesensitizeUtil.auditFile(String filePath)` — 接收文件路径，内部读取文件内容后发送给AI模型进行审核
+* 方法内部负责文件路径合法性校验（目录穿越防护、文件存在性、可读性、大小限制）
+* AI模型作为专业的敏感数据审核员，判断文件中是否仍存在敏感数据
+* 若存在敏感数据，返回：敏感数据类型、内容、推荐的脱敏方式
+* 返回格式：`List<AuditResult>`，每条记录包含 `type`（类型）、`content`（内容）、`suggestion`（脱敏建议）
+* 审核提示词模板配置在 `ai.audit-prompt-template` 中
+* 若AI模块未初始化，调用时抛出 `IllegalStateException`
+
+### FR-6: 配置文件加载优先级
+
+* `desensitize-config.yml` 在 `desensitize-core` 模块中提供默认配置
+* 主模块（如 `desensitize-web`）可在自身 `resources` 中放置同名文件覆盖默认配置
+* Spring Boot类路径加载机制确保主模块的配置文件优先于依赖JAR中的配置文件
+
 ## 非功能性需求
 
 ### NFR-1: 性能要求
@@ -137,3 +166,10 @@
 * AI脱敏方法 `AiDesensitizeUtil.mask()` 必须在 `initialize()` 完成后方可调用
 * 调用前应通过 `AiDesensitizeUtil.isAvailable()` 检查模块是否已正确初始化
 * 若未初始化即调用，应抛出 `IllegalStateException` 明确提示
+
+### NFR-4: 安全要求
+* 文件路径操作必须使用 `Path.normalize()` 防止目录穿越攻击
+* 用户上传的文件名必须进行合法性校验，过滤 `..`、`/`、`\` 等危险字符
+* 文件下载路径必须限制在指定的结果目录内，禁止访问目录外的文件
+* 敏感配置（API Key等）不得硬编码，应从配置文件或环境变量读取
+* 所有外部输入（文件内容、请求参数）需进行空值和长度校验
