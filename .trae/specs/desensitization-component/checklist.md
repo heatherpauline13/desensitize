@@ -83,3 +83,26 @@
 - [x] AiDesensitizeUtil.initialize() 完成初始化后可正常调用 mask()
 - [x] AiDesensitizeUtil.isAvailable() 在未初始化时返回 false
 - [x] 未初始化时调用 mask() 抛出 IllegalStateException 明确提示
+
+## Web模块验证
+- [x] desensitize-web模块正确依赖core、ai、annotation三个内部模块
+- [x] application.yml配置 `spring.config.import: classpath:desensitize-config.yml`
+- [x] Web界面提供字符串脱敏、文件脱敏、表格脱敏三个Tab页
+- [x] 前端通过fetch调用后端 `/api/desensitize/*` API端点
+- [x] CORS跨域配置正确
+
+## AI文件审核验证
+- [x] AiDesensitizeUtil.auditFile() 支持文件内容审核
+- [x] 审核结果以 List<AuditResult> 形式返回
+- [x] AuditResult 包含 type、content、suggestion 三个字段
+- [x] 审核提示词模板配置在 ai.audit-prompt-template 中
+
+## 配置文件加载优先级验证
+- [x] desensitize-core 提供默认 desensitize-config.yml
+- [x] desensitize-web 提供覆盖版本 desensitize-config.yml
+- [x] Web模块运行时优先加载自身配置文件
+
+## 安全加固验证
+- [x] 文件路径使用 Path.normalize() 防目录穿越
+- [x] 上传文件名过滤 `..`、`/`、`\` 危险字符
+- [x] 文件下载限制在result目录内

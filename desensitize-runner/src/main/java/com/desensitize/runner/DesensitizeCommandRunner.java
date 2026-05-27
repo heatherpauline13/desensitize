@@ -1,9 +1,13 @@
 package com.desensitize.runner;
 
+import com.desensitize.ai.AiDesensitizeUtil;
+import com.desensitize.ai.AuditResult;
 import com.desensitize.core.engine.DesensitizeUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Slf4j
 @Component
@@ -18,7 +22,7 @@ public class DesensitizeCommandRunner implements CommandLineRunner {
               --input.string=<文本>    对输入字符串进行脱敏，结果输出到控制台
               --input.file=<文件路径>  对文档文件进行脱敏，结果保存到 result/ 目录
               --input.table=<文件路径> 对表格文件进行脱敏，结果保存到 result/ 目录
-              --mask.mode=<模式>       脱敏模式: long_text(默认) | single | ai
+              --mask.mode=<模式>       脱敏模式: long_text(默认) | single | ai | ai-audit-string | ai-audit-file
               --mask.type=<类型ID>     单一类型脱敏时指定的类型（与 --mask.mode=single 配合使用）
             
             示例:
@@ -26,6 +30,8 @@ public class DesensitizeCommandRunner implements CommandLineRunner {
               java -jar desensitize-runner.jar --input.file=./test.txt
               java -jar desensitize-runner.jar --input.table=./data.csv
               java -jar desensitize-runner.jar --input.string="13800138000" --mask.mode=single --mask.type=phone
+              java -jar desensitize-runner.jar --input.string="张三的电话是13800138000" --mask.mode=ai-audit-string
+              java -jar desensitize-runner.jar --input.file=./test.txt --mask.mode=ai-audit-file
             
             注意: --input.string、--input.file、--input.table 三个参数互斥，只能指定其中一个
             """;
@@ -73,9 +79,17 @@ public class DesensitizeCommandRunner implements CommandLineRunner {
         }
 
         if (inputString != null) {
-            handleStringInput(inputString, maskMode, maskType);
+            if ("ai-audit-string".equals(maskMode)) {
+                handleAiAuditString(inputString);
+            } else {
+                handleStringInput(inputString, maskMode, maskType);
+            }
         } else if (inputFile != null) {
-            FileProcessor.processDocumentFile(inputFile);
+            if ("ai-audit-file".equals(maskMode)) {
+                handleAiAuditFile(inputFile);
+            } else {
+                FileProcessor.processDocumentFile(inputFile);
+            }
         } else if (inputTable != null) {
             FileProcessor.processTableFile(inputTable);
         }
@@ -107,5 +121,41 @@ public class DesensitizeCommandRunner implements CommandLineRunner {
                 break;
         }
         System.out.println(result);
+    }
+
+    private void handleAiAuditString(String content) {
+        try {
+            List<AuditResult> results = AiDesensitizeUtil.auditString(content);
+            printAuditResults(results);
+        } catch (Exception e) {
+            System.err.println("AI字符串审核失败: " + e.getMessage());
+            System.exit(1);
+        }
+    }
+
+    private void handleAiAuditFile(String filePath) {
+        try {
+            List<AuditResult> results = AiDesensitizeUtil.auditFile(filePath);
+            printAuditResults(results);
+        } catch (Exception e) {
+            System.err.println("AI文件审核失败: " + e.getMessage());
+            System.exit(1);
+        }
+    }
+
+    private void printAuditResults(List<AuditResult> results) {
+        if (results.isEmpty()) {
+            System.out.println("审核完成：未发现敏感数据");
+            return;
+        }
+        System.out.println("审核完成：发现 " + results.size() + " 条敏感数据");
+        System.out.println("========================================");
+        for (int i = 0; i < results.size(); i++) {
+            AuditResult item = results.get(i);
+            System.out.println("[" + (i + 1) + "] 类型: " + item.getType());
+            System.out.println("    内容: " + item.getContent());
+            System.out.println("    建议: " + item.getSuggestion());
+            System.out.println("----------------------------------------");
+        }
     }
 }

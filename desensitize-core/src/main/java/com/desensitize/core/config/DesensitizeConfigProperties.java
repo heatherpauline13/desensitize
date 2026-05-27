@@ -22,5 +22,9 @@ public class DesensitizeConfigProperties {
     @Data
     public static class AiConfig {
         private String promptTemplate;
+
+        private String auditPromptTemplate;
+
+        private String stringAuditPromptTemplate;
     }
 }
